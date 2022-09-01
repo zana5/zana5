@@ -1,0 +1,42 @@
+server {
+        root /var/www/sirap;
+        index index.html index.htm;
+        server_name sirap.xyz www.sirap.xyz;
+        location =/ {
+                #try_files $uri $uri/ /index.php$is_args$args;
+                try_files $uri $uri/ /index.html;
+        }
+        location ~* \.(ico|pdf|flv|jpg|jpeg|png|gif|js|css|swf)$ {
+                expires 1h;
+                etag off;
+                add_header Cache-Control "public, no-transform";
+        }
+        location ~* ^/api/ {
+                try_files $uri $uri/ /api/blog/index.php$is_args$args;
+                index index.php;
+                location ~ [^/]\.php(/|$) {
+                        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+                        include snippets/fastcgi-php.conf;
+                        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+                        #fastcgi_index index.php;
+                }
+        }
+        listen [::]:443 ssl ipv6only=on; # managed by Certbot
+        listen 443 ssl; # managed by Certbot
+        ssl_certificate /etc/letsencrypt/live/sirap.xyz/fullchain.pem; # managed by Certbot
+        ssl_certificate_key /etc/letsencrypt/live/sirap.xyz/privkey.pem; # managed by Certbot
+        include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+        ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+server {
+    if ($host = www.sirap.xyz) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+    if ($host = sirap.xyz) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+        listen 80;
+        listen [::]:80;
+        server_name sirap.xyz www.sirap.xyz;
+    return 404; # managed by Certbot
+}
