@@ -1,27 +1,40 @@
 server {
         root /var/www/sirap;
-        index index.html index.htm;
+        index index.html index.htm index.php;
         server_name sirap.xyz www.sirap.xyz;
-        location =/ {
+        location / {
                 #try_files $uri $uri/ /index.php$is_args$args;
-                try_files $uri $uri/ /index.html;
         }
         location ~* \.(ico|pdf|flv|jpg|jpeg|png|gif|js|css|swf)$ {
                 expires 1h;
                 etag off;
                 add_header Cache-Control "public, no-transform";
         }
-        location ~* ^/api/ {
-                try_files $uri $uri/ /api/blog/index.php$is_args$args;
-                index index.php;
+        location /api/blog {
+                alias /var/www/sirap/api/blog;
+                try_files $uri $uri/ @blog;
                 location ~ [^/]\.php(/|$) {
-                        fastcgi_split_path_info ^(.+\.php)(/.+)$;
                         include snippets/fastcgi-php.conf;
+                        fastcgi_param SCRIPT_FILENAME $request_filename;
                         fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
-                        #fastcgi_index index.php;
                 }
         }
-        listen [::]:443 ssl ipv6only=on; # managed by Certbot
+        location /api/ignite {
+                alias /var/www/sirap/api/ignite/public;
+                try_files $uri $uri/ @ignite;
+                location ~ \.php$ {
+                        include snippets/fastcgi-php.conf;
+                        #fastcgi_split_path_info ^(.+\.php)(/.+)$;
+                        fastcgi_param SCRIPT_FILENAME $request_filename;
+                        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+                }
+        }
+        location @ignite {
+                rewrite /api/ignite/(.*)$ /api/ignite/index.php?/$1 last;
+        }
+        location @blog {
+                rewrite /api/blog/(.*)$ /api/blog/index.php?/$1 last;
+        }
         listen 443 ssl; # managed by Certbot
         ssl_certificate /etc/letsencrypt/live/sirap.xyz/fullchain.pem; # managed by Certbot
         ssl_certificate_key /etc/letsencrypt/live/sirap.xyz/privkey.pem; # managed by Certbot
